@@ -70,11 +70,23 @@ class Table:
             if condition(item1):
                 filtered_table.table.append(item1)
         return filtered_table
-    
+
+    def __is_float(self, element):
+        if element is None:
+            return False
+        try:
+            float(element)
+            return True
+        except ValueError:
+            return False
+
     def aggregate(self, function, aggregation_key):
         temps = []
         for item1 in self.table:
-            temps.append(float(item1[aggregation_key]))
+            if self.__is_float(item1[aggregation_key]):
+                temps.append(float(item1[aggregation_key]))
+            else:
+                temps.append(item1[aggregation_key])
         return function(temps)
     
     def select(self, attributes_list):
@@ -86,6 +98,50 @@ class Table:
                     dict_temp[key] = item1[key]
             temps.append(dict_temp)
         return temps
+
+    def pivot_table(self, keys_to_pivot_list, keys_to_aggregate_list, aggregate_func_list):
+
+        # First create a list of unique values for each key
+        unique_values_list = []
+
+        # Here is an example of  unique_values_list for
+        # keys_to_pivot_list = ['embarked', 'gender', 'class']
+        # unique_values_list = [['Southampton', 'Cherbourg', 'Queenstown'], ['M', 'F'], ['3', '2','1']]
+        pivot = []
+        for keys in keys_to_pivot_list:
+            table_selected = self.select(keys)
+            # print(table_selected)
+            temp = []
+            for x in table_selected:
+                for key, value in x.items():
+                    if value not in temp:
+                        temp.append(value)
+            pivot.append(temp)
+
+        # print('pivot',pivot)
+
+        import _gen
+
+        # making pivot combinations
+        unique_pivot = []
+        comb_pivot = _gen.gen_comb_list(pivot)
+        # print(comb_pivot)
+        for i in comb_pivot:
+            rn = copy.copy(self)
+            aggregated = []
+            # print(comb_pivot)
+            # aggregation
+            for index in range(len(keys_to_pivot_list)):
+                rn = rn.filter(lambda x: x[keys_to_pivot_list[index]] == i[index])
+                # print(rn)
+
+            for index in range(len(keys_to_aggregate_list)):
+                val = rn.aggregate(aggregate_func_list[index], keys_to_aggregate_list[index])
+                # print(val)
+                aggregated.append(val)
+
+            unique_pivot.append([i, aggregated])
+        return unique_pivot
 
     def __str__(self):
         return self.table_name + ':' + str(self.table)
@@ -108,6 +164,27 @@ my_DB2.insert(table5)
 my_table3 = my_DB.search('players')
 my_table4 = my_DB.search('teams')
 my_table5 = my_DB.search('titanic')
+
+# table4 = Table('titanic', titanic)
+# # my_DB.insert(table4)
+# my_table5 = my_DB.search('titanic')
+my_pivot = table5.pivot_table(['embarked', 'gender', 'class'], ['fare', 'fare', 'fare', 'last'], [lambda x: min(x), lambda x: max(x), lambda x: sum(x)/len(x), lambda x: len(x)])
+print(my_pivot)
+# pivot test case 1
+my_pivot_1 = table3.pivot_table(['position'], ['passes', 'shots'], [lambda x: sum(x) / len(x), lambda x: len(x)])
+print(my_pivot_1)
+
+# pivot test case 2
+countries_ext = my_table1.join(table2, 'country')
+my_pivot_2 = countries_ext.pivot_table(['EU', 'coastline'], ['temperature', 'latitude', 'latitude'],
+                                       [lambda x: sum(x) / len(x), lambda x: min(x), lambda x: max(x)])
+print(my_pivot_2)
+
+# pivot test case 3
+my_pivot_3 = table5.pivot_table(['class', 'gender', 'survived'], ['survived', 'fare'],
+                                   [lambda x: len(x), lambda x: sum(x) / len(x)])
+print(my_pivot_3)
+
 
 print("Test filter: only filtering out cities in Italy")
 my_table1_filtered = my_table1.filter(lambda x: x['country'] == 'Italy')
@@ -194,4 +271,7 @@ for passengers in table5.table:
         female.append(passengers)
 male_survived_rate = (len(male_survive)/len(male)) * 100
 print(f'male survived rate = {male_survived_rate} vs {len(female)}')
+
+
+
 
