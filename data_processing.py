@@ -195,3 +195,7 @@ for passengers in table5.table:
 male_survived_rate = (len(male_survive)/len(male)) * 100
 print(f'male survived rate = {male_survived_rate} vs {len(female)}')
 
+print()
+print('male passengers embarked at Southampton')
+table5_filtered4 = table5.filter(lambda x: x['embarked'] == 'Southampton')
+print(len(table5_filtered4.table))
